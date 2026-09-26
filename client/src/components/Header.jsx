@@ -10,6 +10,7 @@ export default function Header({ onOpenMobile, activeNav, onNavigate }) {
   const [alerts, setAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertsError, setAlertsError] = useState('');
+  const [alertsSeen, setAlertsSeen] = useState(false);
   const alertsRef = useRef(null);
 
   useEffect(() => {
@@ -121,14 +122,17 @@ export default function Header({ onOpenMobile, activeNav, onNavigate }) {
         <div className="relative" ref={alertsRef}>
           <button
             type="button"
-            onClick={() => setAlertsOpen((open) => !open)}
+            onClick={() => {
+              setAlertsOpen((open) => !open);
+              setAlertsSeen(true);
+            }}
             className="relative rounded-lg p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
             aria-label="Notifications"
             aria-expanded={alertsOpen}
             aria-controls="stock-alerts-panel"
           >
             <Bell className="h-4 w-4" />
-            {alerts.length > 0 && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-slate-900" />}
+            {alerts.length > 0 && !alertsSeen && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-slate-900" />}
           </button>
           {alertsOpen && (
             <div id="stock-alerts-panel" className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900" role="region" aria-label="Stock alerts">
