@@ -6,7 +6,6 @@ import {
   History,
   Settings,
   User,
-  LogOut,
   X,
   Boxes,
   ArrowDownLeft,
@@ -176,20 +175,11 @@ export default function Sidebar({
                 <User className="h-4 w-4" />
               </div>
               <div className="flex-1 overflow-hidden">
-                <div className="truncate text-xs font-semibold text-white">Anjali Yadav</div>
+                <div className="truncate text-xs font-semibold text-white">StockSense Team</div>
                 <div className="truncate text-[11px] text-slate-400">Inventory Lead</div>
               </div>
             </button>
 
-            <button
-              onClick={() => {
-                alert('Profile session logged out.');
-              }}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-slate-700/80 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-red-950/30 hover:border-red-900/50 hover:text-red-300"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              <span>Log out</span>
-            </button>
           </div>
         </div>
       </aside>
