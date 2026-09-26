@@ -9,8 +9,7 @@ import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage';
 
 export default function App() {
-  // Default to 'receipts' as the primary first working operation requested
-  const [activeNav, setActiveNav] = useState('receipts');
+  const [activeNav, setActiveNav] = useState('dashboard');
 
   const renderContent = () => {
     switch (activeNav) {

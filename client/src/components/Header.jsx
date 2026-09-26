@@ -12,13 +12,14 @@ export default function Header({ onOpenMobile, activeNav, onNavigate }) {
   const [alertsError, setAlertsError] = useState('');
   const [alertsSeen, setAlertsSeen] = useState(false);
   const alertsRef = useRef(null);
+  const seenAlertSignature = useRef('');
 
   useEffect(() => {
-    if (!alertsOpen) return;
     let active = true;
-    setAlertsLoading(true);
-    setAlertsError('');
-    Promise.all([api.getProducts(), api.getStock(), api.getOperations()])
+    const refreshAlerts = () => {
+      if (alertsOpen) setAlertsLoading(true);
+      setAlertsError('');
+      Promise.all([api.getProducts(), api.getStock(), api.getOperations()])
       .then(([products, stock, operations]) => {
         if (!active) return;
         const next = [];
@@ -42,18 +43,31 @@ export default function Header({ onOpenMobile, activeNav, onNavigate }) {
           });
         }
         setAlerts(next);
+        const signature = next.map((alert) => `${alert.id}:${alert.text}`).join('|');
+        if (alertsOpen) {
+          seenAlertSignature.current = signature;
+          setAlertsSeen(true);
+        } else if (signature !== seenAlertSignature.current) {
+          setAlertsSeen(false);
+        }
       })
       .catch((error) => { if (active) setAlertsError(error.message || 'Unable to load alerts.'); })
       .finally(() => { if (active) setAlertsLoading(false); });
+    };
+    refreshAlerts();
+    const interval = window.setInterval(refreshAlerts, 30000);
 
     const closeOnOutsideClick = (event) => {
       if (!alertsRef.current?.contains(event.target)) setAlertsOpen(false);
     };
     const closeOnEscape = (event) => { if (event.key === 'Escape') setAlertsOpen(false); };
-    document.addEventListener('pointerdown', closeOnOutsideClick);
-    document.addEventListener('keydown', closeOnEscape);
+    if (alertsOpen) {
+      document.addEventListener('pointerdown', closeOnOutsideClick);
+      document.addEventListener('keydown', closeOnEscape);
+    }
     return () => {
       active = false;
+      window.clearInterval(interval);
       document.removeEventListener('pointerdown', closeOnOutsideClick);
       document.removeEventListener('keydown', closeOnEscape);
     };
@@ -132,7 +146,7 @@ export default function Header({ onOpenMobile, activeNav, onNavigate }) {
             aria-controls="stock-alerts-panel"
           >
             <Bell className="h-4 w-4" />
-            {alerts.length > 0 && !alertsSeen && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-slate-900" />}
+            {alerts.length > 0 && !alertsSeen && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />}
           </button>
           {alertsOpen && (
             <div id="stock-alerts-panel" className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900" role="region" aria-label="Stock alerts">

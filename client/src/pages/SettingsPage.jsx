@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, Shield, Server, FileCode2 } from 'lucide-react';
+import { Server, FileCode2 } from 'lucide-react';
 import PageHeading from '../components/PageHeading';
 
 export default function SettingsPage() {
@@ -41,6 +41,8 @@ export default function SettingsPage() {
           </h4>
           <ul className="space-y-1.5 font-mono text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
             <li>GET /api/products</li>
+            <li>POST /api/products</li>
+            <li>PATCH /api/products/:id</li>
             <li>GET /api/locations</li>
             <li>GET /api/stock</li>
             <li>POST /api/operations</li>

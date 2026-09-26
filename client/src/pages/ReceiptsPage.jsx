@@ -38,6 +38,7 @@ export default function ReceiptsPage() {
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [actionSuccessMessage, setActionSuccessMessage] = useState(null);
+  const [actionErrorMessage, setActionErrorMessage] = useState(null);
   const [selectedDraftForValidate, setSelectedDraftForValidate] = useState(null);
 
   // Fetch initial data
@@ -120,6 +121,8 @@ export default function ReceiptsPage() {
   const handleCreateReceipt = async (e) => {
     if (e) e.preventDefault();
     if (!validateForm()) return;
+    setActionErrorMessage(null);
+    setActionSuccessMessage(null);
 
     try {
       setSubmitting(true);
@@ -151,7 +154,7 @@ export default function ReceiptsPage() {
       setReceipts((updatedOps || []).filter((op) => op.type === 'RECEIPT'));
     } catch (err) {
       console.error('Failed to create receipt:', err);
-      alert(`Error creating receipt: ${err.message}`);
+      setActionErrorMessage(`Error creating receipt: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -159,6 +162,8 @@ export default function ReceiptsPage() {
 
   // Validate Receipt (Status: DONE)
   const handleValidateReceipt = async (receiptId) => {
+    setActionErrorMessage(null);
+    setActionSuccessMessage(null);
     try {
       setSubmitting(true);
       const validatedOp = await api.validateOperation(receiptId);
@@ -174,7 +179,7 @@ export default function ReceiptsPage() {
       setReceipts((updatedOps || []).filter((op) => op.type === 'RECEIPT'));
     } catch (err) {
       console.error('Failed to validate receipt:', err);
-      alert(`Error validating receipt: ${err.message}`);
+      setActionErrorMessage(`Error validating receipt: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -324,6 +329,12 @@ export default function ReceiptsPage() {
       />
 
       {/* Action Banner / Notification */}
+      {actionErrorMessage && (
+        <div role="alert" className="flex items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200">
+          <span>{actionErrorMessage}</span>
+          <button type="button" onClick={() => setActionErrorMessage(null)} className="font-semibold underline">Dismiss</button>
+        </div>
+      )}
       {actionSuccessMessage && (
         <div className="flex items-center justify-between rounded-xl border border-teal-200 dark:border-teal-800/60 bg-teal-50/80 dark:bg-teal-950/40 p-4 text-sm text-teal-900 dark:text-teal-200 shadow-sm animate-fade-in">
           <div className="flex items-center gap-2.5">
