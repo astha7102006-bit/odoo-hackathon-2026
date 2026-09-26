@@ -324,6 +324,93 @@ async function runTestSuite() {
     assert(Array.isArray(d.stock), 'Dashboard must include stock summary');
   });
 
+  console.log('\n--- Phase 7: Product Management (POST & PATCH) ---');
+
+  let createdProdId = null;
+
+  await itAsync('POST /api/products creates a new product with 201', async () => {
+    const { status, data } = await makeRequest(app, 'POST', '/api/products', {
+      name: 'Aluminum Sheets',
+      sku: 'ALUM-001',
+      uom: 'pcs',
+      reorderLevel: 15,
+    });
+    assert.strictEqual(status, 201);
+    assert(data.id, 'Created product must have an id');
+    assert.strictEqual(data.name, 'Aluminum Sheets');
+    assert.strictEqual(data.sku, 'ALUM-001');
+    assert.strictEqual(data.uom, 'pcs');
+    assert.strictEqual(data.unit, undefined, 'Must not return unit field');
+    assert.strictEqual(data.reorderLevel, 15);
+    createdProdId = data.id;
+  });
+
+  await itAsync('POST /api/products rejects duplicate SKU with 409', async () => {
+    const { status, data } = await makeRequest(app, 'POST', '/api/products', {
+      name: 'Another Sheet',
+      sku: 'ALUM-001',
+    });
+    assert.strictEqual(status, 409);
+    assert(data.error || data.message, 'Must return error message');
+  });
+
+  await itAsync('POST /api/products rejects missing required fields with 400', async () => {
+    const res1 = await makeRequest(app, 'POST', '/api/products', { sku: 'TEST-SKU' });
+    assert.strictEqual(res1.status, 400);
+
+    const res2 = await makeRequest(app, 'POST', '/api/products', { name: 'Test Name' });
+    assert.strictEqual(res2.status, 400);
+  });
+
+  await itAsync('POST /api/products rejects negative reorderLevel with 400', async () => {
+    const { status } = await makeRequest(app, 'POST', '/api/products', {
+      name: 'Bad Product',
+      sku: 'BAD-001',
+      reorderLevel: -5,
+    });
+    assert.strictEqual(status, 400);
+  });
+
+  await itAsync('PATCH /api/products/:id updates product with 200', async () => {
+    const { status, data } = await makeRequest(app, 'PATCH', `/api/products/${createdProdId}`, {
+      name: 'Aluminum Sheets Premium',
+      reorderLevel: 25,
+    });
+    assert.strictEqual(status, 200);
+    assert.strictEqual(data.id, createdProdId);
+    assert.strictEqual(data.name, 'Aluminum Sheets Premium');
+    assert.strictEqual(data.sku, 'ALUM-001');
+    assert.strictEqual(data.uom, 'pcs');
+    assert.strictEqual(data.unit, undefined, 'Must not return unit field');
+    assert.strictEqual(data.reorderLevel, 25);
+  });
+
+  await itAsync('PATCH /api/products/:id with unknown ID returns 404', async () => {
+    const { status } = await makeRequest(app, 'PATCH', '/api/products/non-existent-id', {
+      name: 'Does Not Exist',
+    });
+    assert.strictEqual(status, 404);
+  });
+
+  await itAsync('PATCH /api/products/:id with duplicate SKU returns 409', async () => {
+    // STEEL-001 already exists from seed
+    const { status } = await makeRequest(app, 'PATCH', `/api/products/${createdProdId}`, {
+      sku: 'STEEL-001',
+    });
+    assert.strictEqual(status, 409);
+  });
+
+  await itAsync('Product creation/editing does NOT modify stock_balances or operations', async () => {
+    const stockRes = await makeRequest(app, 'GET', '/api/stock');
+    const whStock = stockRes.data.find((s) => s.locationId === 'loc-1')?.quantity;
+    const rackStock = stockRes.data.find((s) => s.locationId === 'loc-2')?.quantity;
+    assert.strictEqual(whStock, 70, 'Main Warehouse balance unchanged');
+    assert.strictEqual(rackStock, 18, 'Production Rack balance unchanged');
+
+    const movesRes = await makeRequest(app, 'GET', '/api/moves');
+    assert.strictEqual(movesRes.data.length, 4, 'Move history count unchanged');
+  });
+
   console.log('\n======================================================');
   console.log(`🎉 All ${passedTests}/${totalTests} tests passed successfully!`);
   console.log('======================================================\n');
