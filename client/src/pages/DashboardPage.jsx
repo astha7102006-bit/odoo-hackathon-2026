@@ -12,22 +12,26 @@ import {
 import PageHeading from '../components/PageHeading';
 import KpiCard from '../components/KpiCard';
 import LoadingState from '../components/LoadingState';
+import ErrorState from '../components/ErrorState';
 import { api } from '../services/api';
 
 export default function DashboardPage({ onNavigate }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const [dashData, stockData] = await Promise.all([
+        const [dashData, stockData, locations] = await Promise.all([
           api.getDashboard(),
           api.getStock(),
+          api.getLocations(),
         ]);
-        setData({ ...dashData, stock: stockData });
+        setData({ ...dashData, stock: stockData, locations });
       } catch (err) {
         console.error('Error loading dashboard:', err);
+        setError(err.message || 'Dashboard could not connect to the backend.');
       } finally {
         setLoading(false);
       }
@@ -38,6 +42,13 @@ export default function DashboardPage({ onNavigate }) {
   if (loading) {
     return <LoadingState message="Loading StockSense Dashboard..." />;
   }
+
+  if (error) return <ErrorState title="Dashboard unavailable" message={error} onRetry={() => window.location.reload()} />;
+
+  const locationQuantity = (name) => {
+    const location = (data?.locations || []).find((item) => item.name?.toLowerCase() === name.toLowerCase());
+    return (data?.stock || []).filter((item) => item.locationId === location?.id).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  };
 
   return (
     <div className="space-y-6">
@@ -59,28 +70,28 @@ export default function DashboardPage({ onNavigate }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           title="Catalog Products"
-          value={data?.totalProducts || 3}
+          value={data?.totalProducts ?? 0}
           icon={Package}
           variant="navy"
           description="Tracked SKUs in warehouse"
         />
         <KpiCard
           title="Active Locations"
-          value={data?.totalLocations || 3}
+          value={data?.totalLocations ?? 0}
           icon={Warehouse}
           variant="teal"
           description="Main Warehouse & Production Racks"
         />
         <KpiCard
           title="Receipt Operations"
-          value={data?.totalReceipts || 1}
+          value={data?.totalReceipts ?? 0}
           icon={ArrowDownLeft}
           variant="teal"
-          description={`${data?.pendingDrafts || 0} drafts pending validation`}
+          description={`${data?.pendingDrafts ?? 0} drafts pending validation`}
         />
         <KpiCard
           title="Validated Operations"
-          value={data?.validatedDone || 0}
+          value={data?.validatedDone ?? 0}
           icon={CheckCircle2}
           variant="amber"
           description="Stock moves committed"
@@ -127,7 +138,7 @@ export default function DashboardPage({ onNavigate }) {
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-slate-800">Main Warehouse (WH-MAIN)</span>
               <span className="rounded bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-800">
-                {data?.stock?.find((s) => s.locationId === 'loc-1')?.quantity || 0} kg
+                {locationQuantity('Main Warehouse')} kg
               </span>
             </div>
             <div className="mt-2 text-xs text-slate-500">
@@ -139,7 +150,7 @@ export default function DashboardPage({ onNavigate }) {
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-slate-800">Production Rack (RACK-PROD)</span>
               <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-800">
-                {data?.stock?.find((s) => s.locationId === 'loc-2')?.quantity || 0} kg
+                {locationQuantity('Production Rack')} kg
               </span>
             </div>
             <div className="mt-2 text-xs text-slate-500">
