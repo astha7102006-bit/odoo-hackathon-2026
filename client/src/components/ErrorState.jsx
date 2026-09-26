@@ -7,12 +7,12 @@ export default function ErrorState({
   onRetry,
 }) {
   return (
-    <div className="rounded-xl border border-red-200 bg-red-50/50 p-6 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600 mb-3">
+    <div className="rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50/50 dark:bg-red-950/20 p-6 text-center transition-colors">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 mb-3">
         <AlertTriangle className="h-6 w-6" />
       </div>
-      <h3 className="text-base font-semibold text-red-900">{title}</h3>
-      <p className="mt-1 text-sm text-red-700 max-w-md mx-auto">{message}</p>
+      <h3 className="text-base font-semibold text-red-900 dark:text-red-300">{title}</h3>
+      <p className="mt-1 text-sm text-red-700 dark:text-red-400 max-w-md mx-auto">{message}</p>
       {onRetry && (
         <button
           onClick={onRetry}

@@ -42,6 +42,16 @@ async function request(endpoint, options = {}) {
 export const api = {
   // Products
   getProducts: () => request('/api/products'),
+  createProduct: (productData) =>
+    request('/api/products', {
+      method: 'POST',
+      body: JSON.stringify(productData),
+    }),
+  updateProduct: (productId, productData) =>
+    request(`/api/products/${productId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(productData),
+    }),
 
   // Locations
   getLocations: () => request('/api/locations'),
