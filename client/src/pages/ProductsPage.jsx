@@ -179,7 +179,11 @@ export default function ProductsPage() {
         // Refresh product list and stock after successful edit
         await loadData();
         setTimeout(() => {
-          handleCloseForm();
+          setIsFormOpen(false);
+          setEditingProduct(null);
+          setFormData(defaultForm);
+          setFormErrors({});
+          setFormFeedback(null);
         }, 1200);
       } catch (err) {
         console.error('Product update error:', err);
@@ -221,7 +225,11 @@ export default function ProductsPage() {
         // Refresh product list and stock after successful create
         await loadData();
         setTimeout(() => {
-          handleCloseForm();
+          setIsFormOpen(false);
+          setEditingProduct(null);
+          setFormData(defaultForm);
+          setFormErrors({});
+          setFormFeedback(null);
         }, 1200);
       } catch (err) {
         console.error('Product create error:', err);
