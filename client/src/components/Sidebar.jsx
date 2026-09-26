@@ -182,9 +182,7 @@ export default function Sidebar({
             </button>
 
             <button
-              onClick={() => {
-                alert('Profile session logged out.');
-              }}
+              type="button"
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-slate-700/80 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-red-950/30 hover:border-red-900/50 hover:text-red-300"
             >
               <LogOut className="h-3.5 w-3.5" />

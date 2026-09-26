@@ -20,6 +20,7 @@ export default function AppLayout({ activeNav, onNavigate, children }) {
         <Header
           activeNav={activeNav}
           onOpenMobile={() => setMobileOpen(true)}
+          onNavigate={onNavigate}
         />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto">
           {children}

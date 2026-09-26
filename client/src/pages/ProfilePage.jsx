@@ -42,7 +42,7 @@ export default function ProfilePage() {
 
         <div className="mt-6 pt-4 border-t border-slate-100">
           <button
-            onClick={() => alert('Logged out successfully.')}
+            type="button"
             className="inline-flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 transition"
           >
             <LogOut className="h-4 w-4" />
