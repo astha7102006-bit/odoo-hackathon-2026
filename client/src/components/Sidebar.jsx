@@ -37,6 +37,7 @@ export default function Sidebar({
       icon: ArrowLeftRight,
       subItems: [
         { id: 'receipts', label: 'Receipts', icon: ArrowDownLeft },
+        { id: 'operations', label: 'Transfer · Delivery · Adjust', icon: ArrowLeftRight },
       ],
     },
     {
@@ -103,7 +104,7 @@ export default function Sidebar({
                 <button
                   onClick={() => {
                     if (item.subItems) {
-                      onNavigate('receipts');
+                      onNavigate('operations');
                     } else {
                       onNavigate(item.id);
                     }

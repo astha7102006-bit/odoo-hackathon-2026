@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AppLayout from './components/AppLayout';
 import ReceiptsPage from './pages/ReceiptsPage';
+import OperationsPage from './pages/OperationsPage';
 import DashboardPage from './pages/DashboardPage';
 import ProductsPage from './pages/ProductsPage';
 import MoveHistoryPage from './pages/MoveHistoryPage';
@@ -16,8 +17,9 @@ export default function App() {
       case 'dashboard':
         return <DashboardPage onNavigate={setActiveNav} />;
       case 'receipts':
-      case 'operations':
         return <ReceiptsPage />;
+      case 'operations':
+        return <OperationsPage />;
       case 'products':
         return <ProductsPage />;
       case 'moves':
