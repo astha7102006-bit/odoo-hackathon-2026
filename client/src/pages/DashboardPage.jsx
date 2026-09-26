@@ -23,13 +23,14 @@ export default function DashboardPage({ onNavigate }) {
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const [dashData, stockData, locations, operations] = await Promise.all([
+        const [dashData, stockData, locations, operations, products] = await Promise.all([
           api.getDashboard(),
           api.getStock(),
           api.getLocations(),
           api.getOperations(),
+          api.getProducts(),
         ]);
-        setData({ ...dashData, stock: stockData, locations, operations });
+        setData({ ...dashData, stock: stockData, locations, operations, products });
       } catch (err) {
         console.error('Error loading dashboard:', err);
         setError(err.message || 'Dashboard could not connect to the backend.');
@@ -46,10 +47,17 @@ export default function DashboardPage({ onNavigate }) {
 
   if (error) return <ErrorState title="Dashboard unavailable" message={error} onRetry={() => window.location.reload()} />;
 
-  const locationQuantity = (name) => {
+  const locationItems = (name) => {
     const location = (data?.locations || []).find((item) => item.name?.toLowerCase() === name.toLowerCase());
-    return (data?.stock || []).filter((item) => item.locationId === location?.id).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    return (data?.stock || []).filter((item) => item.locationId === location?.id && Number(item.quantity) > 0);
   };
+  const recommendations = (data?.products || []).map((product) => {
+    const total = (data?.stock || []).filter((row) => row.productId === product.id)
+      .reduce((sum, row) => sum + Number(row.quantity || 0), 0);
+    const threshold = Number(product.reorderLevel || 0);
+    return { ...product, total, threshold, suggested: Math.max(0, Math.max(threshold * 2, 1) - total) };
+  }).filter((product) => product.total <= product.threshold)
+    .sort((a, b) => a.total - b.total);
   const completed = new Set((data?.operations || []).filter((op) => op.status === 'DONE').map((op) => op.type));
   const nextStep = !completed.has('RECEIPT')
     ? { title: 'Receive 100 kg Steel Rods', description: 'Receive stock into Main Warehouse and validate the receipt.', nav: 'receipts', button: 'Open Receipts' }
@@ -132,6 +140,27 @@ export default function DashboardPage({ onNavigate }) {
         </div>
       </div>
 
+      {/* Rule-based restock guidance based on live catalog and balances */}
+      <section className="rounded-xl border border-amber-200 bg-amber-50/80 p-5 shadow-sm dark:border-amber-900/70 dark:bg-amber-950/20">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Smart Restock Plan</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-300">Live rule: when total stock reaches the reorder level, suggest enough to reach twice that level.</p>
+          </div>
+          <span className="rounded-full bg-amber-200/70 px-3 py-1 text-xs font-semibold text-amber-950 dark:bg-amber-900/50 dark:text-amber-100">{recommendations.length} items to review</span>
+        </div>
+        {recommendations.length === 0 ? <p className="text-sm text-emerald-700 dark:text-emerald-300">Stock is above all configured reorder levels.</p> : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {recommendations.slice(0, 4).map((product) => (
+              <div key={product.id} className="rounded-lg border border-amber-200 bg-white p-3 dark:border-amber-900 dark:bg-slate-900">
+                <div className="flex items-center justify-between gap-2"><strong className="text-sm text-slate-900 dark:text-white">{product.name}</strong><span className="text-xs font-bold text-amber-800 dark:text-amber-300">Suggested: +{product.suggested} {product.uom}</span></div>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">On hand: {product.total} {product.uom} · Reorder level: {product.threshold} {product.uom}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* Stock Overview Table */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm transition-colors">
         <div className="mb-4 flex items-center justify-between">
@@ -147,24 +176,22 @@ export default function DashboardPage({ onNavigate }) {
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Main Warehouse (WH-MAIN)</span>
-              <span className="rounded bg-teal-100 dark:bg-teal-950/60 px-2 py-0.5 text-xs font-bold text-teal-800 dark:text-teal-300">
-                {locationQuantity('Main Warehouse')} kg
-              </span>
+              <span className="rounded bg-teal-100 dark:bg-teal-950/60 px-2 py-0.5 text-xs font-bold text-teal-800 dark:text-teal-300">{locationItems('Main Warehouse').length} stocked products</span>
             </div>
             <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-              Current inventory at this location.
+              {locationItems('Main Warehouse').map((item) => <span key={item.productId} className="mr-3 inline-block">{item.productName}: {item.quantity} {item.uom}</span>)}
+              {locationItems('Main Warehouse').length === 0 && 'No stock at this location yet.'}
             </div>
           </div>
 
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Production Rack (RACK-PROD)</span>
-              <span className="rounded bg-slate-200 dark:bg-slate-700 px-2 py-0.5 text-xs font-bold text-slate-800 dark:text-slate-200">
-                {locationQuantity('Production Rack')} kg
-              </span>
+              <span className="rounded bg-slate-200 dark:bg-slate-700 px-2 py-0.5 text-xs font-bold text-slate-800 dark:text-slate-200">{locationItems('Production Rack').length} stocked products</span>
             </div>
             <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-              Current inventory at this location.
+              {locationItems('Production Rack').map((item) => <span key={item.productId} className="mr-3 inline-block">{item.productName}: {item.quantity} {item.uom}</span>)}
+              {locationItems('Production Rack').length === 0 && 'No stock at this location yet.'}
             </div>
           </div>
         </div>

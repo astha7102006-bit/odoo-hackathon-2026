@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
+import { api } from '../services/api';
 
 const PAGE_GUIDES = {
   dashboard: 'You are on the StockSense Dashboard. Review current stock levels, demo milestones, and inventory KPIs.',
@@ -125,6 +126,23 @@ export default function VoiceGuide({ activeNav, onNavigate }) {
     }
   };
 
+  const readStockAlerts = async () => {
+    setStatusMessage('Checking live stock alerts...');
+    setIsWarning(false);
+    try {
+      const alerts = await api.getAlerts();
+      const stockAlerts = alerts.filter((item) => item.type === 'OUT_OF_STOCK' || item.type === 'LOW_STOCK');
+      const message = stockAlerts.length === 0
+        ? 'All products are above their reorder levels.'
+        : `${stockAlerts.length} products need attention. ${stockAlerts.slice(0, 3).map((item) => item.title).join('. ')}.`;
+      setStatusMessage(message);
+      speakText(message);
+    } catch (error) {
+      setStatusMessage(error.message || 'Stock alerts are unavailable.');
+      setIsWarning(true);
+    }
+  };
+
   // Safe command processor - strictly NAVIGATION and GUIDANCE only
   const processVoiceCommand = (command) => {
     // 1. Safety check: Reject any mutative commands immediately
@@ -140,8 +158,10 @@ export default function VoiceGuide({ activeNav, onNavigate }) {
       return;
     }
 
-    // 2. Navigation commands
-    if (command.includes('dashboard')) {
+    // 2. Live read-only inventory question
+    if (command.includes('low stock') || command.includes('stock alert') || command.includes('inventory alert')) {
+      readStockAlerts();
+    } else if (command.includes('dashboard')) {
       onNavigate('dashboard');
       setStatusMessage('Navigating to Dashboard');
       speakText('Opening Dashboard');
@@ -168,7 +188,7 @@ export default function VoiceGuide({ activeNav, onNavigate }) {
       setIsWarning(false);
     } else if (command.includes('help') || command.includes('guide')) {
       const helpText =
-        'Say Dashboard, Receipts, Operations, Products, or Move History to navigate.';
+        'Say Dashboard, Receipts, Operations, Products, Move History, or Low Stock to check live alerts.';
       setStatusMessage(helpText);
       speakText(helpText);
       setIsWarning(false);
@@ -316,6 +336,10 @@ export default function VoiceGuide({ activeNav, onNavigate }) {
               </div>
             )}
           </div>
+
+          <button type="button" onClick={readStockAlerts} className="mb-3 w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs font-semibold text-amber-900 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            Ask: What is low stock?
+          </button>
 
           {/* Visible Button Alternatives (Always available & accessible) */}
           <div className="space-y-1.5">
