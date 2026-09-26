@@ -10,7 +10,8 @@ import {
   Boxes,
   Warehouse,
   ShieldAlert,
-  ArrowUpDown,
+  Loader2,
+  Info,
 } from 'lucide-react';
 import PageHeading from '../components/PageHeading';
 import Table from '../components/Table';
@@ -18,7 +19,6 @@ import FormInput from '../components/FormInput';
 import FormSelect from '../components/FormSelect';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
-import EmptyState from '../components/EmptyState';
 import { api } from '../services/api';
 
 const defaultForm = {
@@ -28,13 +28,15 @@ const defaultForm = {
   reorderLevel: '20',
 };
 
-const uomOptions = [
+const baseUomOptions = [
   { value: 'kg', label: 'kg (Kilograms)' },
+  { value: 'g', label: 'g (Grams)' },
   { value: 'pcs', label: 'pcs (Pieces)' },
+  { value: 'boxes', label: 'boxes (Boxes)' },
   { value: 'sheets', label: 'sheets (Sheets)' },
   { value: 'm', label: 'm (Meters)' },
   { value: 'l', label: 'l (Liters)' },
-  { value: 'boxes', label: 'boxes (Boxes)' },
+  { value: 'ml', label: 'ml (Milliliters)' },
 ];
 
 export default function ProductsPage() {
@@ -49,7 +51,7 @@ export default function ProductsPage() {
   const [formData, setFormData] = useState(defaultForm);
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [formFeedback, setFormFeedback] = useState(null); // { type: 'success' | 'error', message: string }
+  const [formFeedback, setFormFeedback] = useState(null); // { type: 'success' | 'error' | 'info', message: string }
 
   // Load products and stock from real backend API
   const loadData = async () => {
@@ -74,26 +76,6 @@ export default function ProductsPage() {
     loadData();
   }, []);
 
-  // Validation
-  const validateForm = () => {
-    const errs = {};
-    if (!formData.name || !formData.name.trim()) {
-      errs.name = 'Product name is required';
-    }
-    if (!formData.sku || !formData.sku.trim()) {
-      errs.sku = 'SKU is required';
-    }
-    if (!formData.uom || !formData.uom.trim()) {
-      errs.uom = 'Unit of measure is required';
-    }
-    const rLevel = Number(formData.reorderLevel);
-    if (formData.reorderLevel === '' || isNaN(rLevel) || rLevel < 0) {
-      errs.reorderLevel = 'Reorder level must be a non-negative number';
-    }
-    setFormErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
   const handleOpenCreate = () => {
     setEditingProduct(null);
     setFormData(defaultForm);
@@ -107,7 +89,7 @@ export default function ProductsPage() {
     setFormData({
       name: product.name || '',
       sku: product.sku || '',
-      uom: product.uom || product.unit || 'kg',
+      uom: product.uom || 'kg',
       reorderLevel: product.reorderLevel !== undefined ? String(product.reorderLevel) : '20',
     });
     setFormErrors({});
@@ -116,6 +98,7 @@ export default function ProductsPage() {
   };
 
   const handleCloseForm = () => {
+    if (submitting) return;
     setIsFormOpen(false);
     setEditingProduct(null);
     setFormData(defaultForm);
@@ -125,48 +108,130 @@ export default function ProductsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    setFormFeedback(null);
+    setFormErrors({});
 
-    try {
-      setSubmitting(true);
-      setFormFeedback(null);
+    const errs = {};
+    const trimmedName = formData.name.trim();
+    const trimmedSku = formData.sku.trim().toUpperCase();
+    const selectedUom = (formData.uom || '').trim() || 'kg';
+    const reorderVal = formData.reorderLevel === '' ? 20 : Number(formData.reorderLevel);
 
-      const payload = {
-        name: formData.name.trim(),
-        sku: formData.sku.trim().toUpperCase(),
-        uom: formData.uom.trim(),
-        reorderLevel: Number(formData.reorderLevel),
-      };
+    if (isNaN(reorderVal) || reorderVal < 0) {
+      errs.reorderLevel = 'Reorder level must be a non-negative number';
+    }
 
-      if (editingProduct) {
-        // Real API call to update product
-        await api.updateProduct(editingProduct.id, payload);
-        setFormFeedback({
-          type: 'success',
-          message: `Product "${payload.name}" successfully updated!`,
-        });
-      } else {
-        // Real API call to create product
-        const created = await api.createProduct(payload);
-        setFormFeedback({
-          type: 'success',
-          message: `Product "${payload.name}" (${created?.sku || payload.sku}) successfully created!`,
-        });
+    if (editingProduct) {
+      // Partial update - only send fields that changed
+      const originalName = (editingProduct.name || '').trim();
+      const originalSku = (editingProduct.sku || '').trim().toUpperCase();
+      const originalUom = (editingProduct.uom || 'kg').trim();
+      const originalReorder = Number(editingProduct.reorderLevel !== undefined ? editingProduct.reorderLevel : 20);
+
+      const patchPayload = {};
+
+      if (trimmedName !== originalName) {
+        if (!trimmedName) {
+          errs.name = 'Product name cannot be empty';
+        } else {
+          patchPayload.name = trimmedName;
+        }
       }
 
-      // Refresh product list and stock after successful create/edit
-      await loadData();
-      setTimeout(() => {
-        handleCloseForm();
-      }, 1200);
-    } catch (err) {
-      console.error('Product save error:', err);
-      setFormFeedback({
-        type: 'error',
-        message: err.message || 'Operation failed on the server.',
-      });
-    } finally {
-      setSubmitting(false);
+      if (trimmedSku !== originalSku) {
+        if (!trimmedSku) {
+          errs.sku = 'SKU cannot be empty';
+        } else {
+          patchPayload.sku = trimmedSku;
+        }
+      }
+
+      if (selectedUom !== originalUom) {
+        patchPayload.uom = selectedUom;
+      }
+
+      if (reorderVal !== originalReorder) {
+        if (!errs.reorderLevel) {
+          patchPayload.reorderLevel = reorderVal;
+        }
+      }
+
+      if (Object.keys(errs).length > 0) {
+        setFormErrors(errs);
+        return;
+      }
+
+      if (Object.keys(patchPayload).length === 0) {
+        setFormFeedback({
+          type: 'info',
+          message: 'No changes detected. Update at least one field before saving.',
+        });
+        return;
+      }
+
+      try {
+        setSubmitting(true);
+        const updated = await api.updateProduct(editingProduct.id, patchPayload);
+        setFormFeedback({
+          type: 'success',
+          message: `Product "${updated?.name || trimmedName || editingProduct.name}" successfully updated!`,
+        });
+        // Refresh product list and stock after successful edit
+        await loadData();
+        setTimeout(() => {
+          handleCloseForm();
+        }, 1200);
+      } catch (err) {
+        console.error('Product update error:', err);
+        setFormFeedback({
+          type: 'error',
+          message: err.message || 'Operation failed on the server.',
+        });
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      // Creation - name and sku required, uom defaults to kg, reorderLevel defaults to 20
+      if (!trimmedName) {
+        errs.name = 'Product name is required';
+      }
+      if (!trimmedSku) {
+        errs.sku = 'SKU is required';
+      }
+
+      if (Object.keys(errs).length > 0) {
+        setFormErrors(errs);
+        return;
+      }
+
+      const createPayload = {
+        name: trimmedName,
+        sku: trimmedSku,
+        uom: selectedUom,
+        reorderLevel: reorderVal,
+      };
+
+      try {
+        setSubmitting(true);
+        const created = await api.createProduct(createPayload);
+        setFormFeedback({
+          type: 'success',
+          message: `Product "${created?.name || createPayload.name}" (${created?.sku || createPayload.sku}) successfully created!`,
+        });
+        // Refresh product list and stock after successful create
+        await loadData();
+        setTimeout(() => {
+          handleCloseForm();
+        }, 1200);
+      } catch (err) {
+        console.error('Product create error:', err);
+        setFormFeedback({
+          type: 'error',
+          message: err.message || 'Operation failed on the server.',
+        });
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -226,10 +291,10 @@ export default function ProductsPage() {
     },
     {
       key: 'uom',
-      title: 'Unit',
+      title: 'UoM',
       render: (item) => (
         <span className="rounded bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-          {item.uom || item.unit || 'kg'}
+          {item.uom || 'kg'}
         </span>
       ),
     },
@@ -248,7 +313,7 @@ export default function ProductsPage() {
       title: 'Real Stock Status',
       render: (item) => {
         const { total, entries } = getProductStockInfo(item.id);
-        const uom = item.uom || item.unit || 'kg';
+        const uom = item.uom || 'kg';
         const reorder = Number(item.reorderLevel ?? 20);
 
         let badgeClass = 'bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300 ring-teal-600/20 dark:ring-teal-500/30';
@@ -305,6 +370,12 @@ export default function ProductsPage() {
     },
   ];
 
+  const activeUomOptions = baseUomOptions.some((opt) => opt.value === formData.uom)
+    ? baseUomOptions
+    : formData.uom
+    ? [{ value: formData.uom, label: formData.uom }, ...baseUomOptions]
+    : baseUomOptions;
+
   return (
     <div className="space-y-6">
       <PageHeading
@@ -341,7 +412,8 @@ export default function ProductsPage() {
               </h3>
               <button
                 onClick={handleCloseForm}
-                className="rounded-lg p-1 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
+                disabled={submitting}
+                className="rounded-lg p-1 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-50"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -349,15 +421,22 @@ export default function ProductsPage() {
 
             {formFeedback && (
               <div
+                role="alert"
                 className={`mt-4 rounded-lg p-3 text-xs font-medium flex items-center gap-2 ${
                   formFeedback.type === 'success'
                     ? 'border border-teal-200 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/40 text-teal-900 dark:text-teal-200'
+                    : formFeedback.type === 'info'
+                    ? 'border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200'
                     : 'border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200'
                 }`}
               >
-                {formFeedback.type === 'success' ? (
+                {formFeedback.type === 'success' && (
                   <CheckCircle2 className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-                ) : (
+                )}
+                {formFeedback.type === 'info' && (
+                  <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                )}
+                {formFeedback.type === 'error' && (
                   <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
                 )}
                 <span>{formFeedback.message}</span>
@@ -369,7 +448,8 @@ export default function ProductsPage() {
                 label="Product Name"
                 id="name"
                 required
-                placeholder="e.g. Copper Wire"
+                disabled={submitting}
+                placeholder="e.g. Rice"
                 value={formData.name}
                 onChange={(e) => {
                   setFormData({ ...formData, name: e.target.value });
@@ -382,7 +462,8 @@ export default function ProductsPage() {
                 label="SKU / Identification Code"
                 id="sku"
                 required
-                placeholder="e.g. COPPER-001"
+                disabled={submitting}
+                placeholder="e.g. RICE-002"
                 value={formData.sku}
                 onChange={(e) => {
                   setFormData({ ...formData, sku: e.target.value.toUpperCase() });
@@ -394,22 +475,23 @@ export default function ProductsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <FormSelect
-                  label="Unit of Measure"
+                  label="Unit of Measure (UoM)"
                   id="uom"
-                  required
+                  disabled={submitting}
                   value={formData.uom}
                   onChange={(e) => {
                     setFormData({ ...formData, uom: e.target.value });
                     if (formErrors.uom) setFormErrors({ ...formErrors, uom: null });
                   }}
-                  options={uomOptions}
+                  options={activeUomOptions}
                   error={formErrors.uom}
+                  helperText="Defaults to kg."
                 />
 
                 <FormInput
                   label="Reorder Level"
                   id="reorderLevel"
-                  required
+                  disabled={submitting}
                   type="number"
                   min="0"
                   step="any"
@@ -420,6 +502,7 @@ export default function ProductsPage() {
                     if (formErrors.reorderLevel) setFormErrors({ ...formErrors, reorderLevel: null });
                   }}
                   error={formErrors.reorderLevel}
+                  helperText="Defaults to 20."
                 />
               </div>
 
@@ -428,7 +511,7 @@ export default function ProductsPage() {
                   type="button"
                   onClick={handleCloseForm}
                   disabled={submitting}
-                  className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                  className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -437,7 +520,14 @@ export default function ProductsPage() {
                   disabled={submitting}
                   className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-700 transition disabled:opacity-50"
                 >
-                  {submitting ? 'Saving to Backend...' : editingProduct ? 'Save Changes' : 'Create Product'}
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>{editingProduct ? 'Saving to Backend...' : 'Creating Product...'}</span>
+                    </>
+                  ) : (
+                    <span>{editingProduct ? 'Save Changes' : 'Create Product'}</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -445,7 +535,7 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Real-time Stock Summary by Location Card (Task 3) */}
+      {/* Real-time Stock Summary by Location Card */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm transition-colors">
         <div className="flex items-center justify-between mb-3 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>

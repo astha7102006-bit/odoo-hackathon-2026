@@ -49,7 +49,7 @@ export const api = {
     }),
   updateProduct: (productId, productData) =>
     request(`/api/products/${productId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(productData),
     }),
 
