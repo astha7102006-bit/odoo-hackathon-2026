@@ -133,37 +133,37 @@ export default function DashboardPage({ onNavigate }) {
       </div>
 
       {/* Stock Overview Table */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm transition-colors">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Current Stock Summary</h3>
-            <p className="text-xs text-slate-500">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Current Stock Summary</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Stock levels across Main Warehouse and Production Rack.
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-800">Main Warehouse (WH-MAIN)</span>
-              <span className="rounded bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-800">
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Main Warehouse (WH-MAIN)</span>
+              <span className="rounded bg-teal-100 dark:bg-teal-950/60 px-2 py-0.5 text-xs font-bold text-teal-800 dark:text-teal-300">
                 {locationQuantity('Main Warehouse')} kg
               </span>
             </div>
-            <div className="mt-2 text-xs text-slate-500">
+            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
               Current inventory at this location.
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-800">Production Rack (RACK-PROD)</span>
-              <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-800">
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Production Rack (RACK-PROD)</span>
+              <span className="rounded bg-slate-200 dark:bg-slate-700 px-2 py-0.5 text-xs font-bold text-slate-800 dark:text-slate-200">
                 {locationQuantity('Production Rack')} kg
               </span>
             </div>
-            <div className="mt-2 text-xs text-slate-500">
+            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
               Current inventory at this location.
             </div>
           </div>
