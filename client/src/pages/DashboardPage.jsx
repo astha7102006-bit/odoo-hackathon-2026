@@ -23,12 +23,13 @@ export default function DashboardPage({ onNavigate }) {
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const [dashData, stockData, locations] = await Promise.all([
+        const [dashData, stockData, locations, operations] = await Promise.all([
           api.getDashboard(),
           api.getStock(),
           api.getLocations(),
+          api.getOperations(),
         ]);
-        setData({ ...dashData, stock: stockData, locations });
+        setData({ ...dashData, stock: stockData, locations, operations });
       } catch (err) {
         console.error('Error loading dashboard:', err);
         setError(err.message || 'Dashboard could not connect to the backend.');
@@ -49,6 +50,16 @@ export default function DashboardPage({ onNavigate }) {
     const location = (data?.locations || []).find((item) => item.name?.toLowerCase() === name.toLowerCase());
     return (data?.stock || []).filter((item) => item.locationId === location?.id).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
   };
+  const completed = new Set((data?.operations || []).filter((op) => op.status === 'DONE').map((op) => op.type));
+  const nextStep = !completed.has('RECEIPT')
+    ? { title: 'Receive 100 kg Steel Rods', description: 'Receive stock into Main Warehouse and validate the receipt.', nav: 'receipts', button: 'Open Receipts' }
+    : !completed.has('TRANSFER')
+      ? { title: 'Transfer 30 kg to Production Rack', description: 'Move stock from Main Warehouse and validate the transfer.', nav: 'operations', button: 'Open Operations' }
+      : !completed.has('DELIVERY')
+        ? { title: 'Deliver 10 kg from Production Rack', description: 'Create and validate the customer delivery.', nav: 'operations', button: 'Open Operations' }
+        : !completed.has('ADJUSTMENT')
+          ? { title: 'Count 18 kg at Production Rack', description: 'Record the physical count and validate the adjustment.', nav: 'operations', button: 'Open Operations' }
+          : { title: 'Demo flow complete', description: 'Review current stock and all four audit records in Move History.', nav: 'moves', button: 'View Move History' };
 
   return (
     <div className="space-y-6">
@@ -104,18 +115,18 @@ export default function DashboardPage({ onNavigate }) {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/20 px-2.5 py-0.5 text-xs font-semibold text-teal-300 ring-1 ring-inset ring-teal-500/30">
               <TrendingUp className="h-3.5 w-3.5" />
-              README Hackathon Flow
+              StockSense Demo Flow
             </div>
-            <h3 className="text-xl font-bold tracking-tight">First Demo Operation: Receive 100 kg Steel Rods</h3>
+            <h3 className="text-xl font-bold tracking-tight">{nextStep.title}</h3>
             <p className="text-sm text-slate-300 max-w-2xl">
-              Execute Step 1 of the demo flow: Record receipt of 100 kg Steel Rods into Main Warehouse. Validate it to verify stock increases and move history is created.
+              {nextStep.description}
             </p>
           </div>
           <button
-            onClick={() => onNavigate('receipts')}
+            onClick={() => onNavigate(nextStep.nav)}
             className="inline-flex items-center gap-2 rounded-lg bg-teal-500 px-5 py-2.5 text-sm font-bold text-slate-950 shadow-md transition hover:bg-teal-400"
           >
-            Open Receipts Form
+            {nextStep.button}
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
@@ -130,7 +141,6 @@ export default function DashboardPage({ onNavigate }) {
               Stock levels across Main Warehouse and Production Rack.
             </p>
           </div>
-          <span className="text-xs text-slate-500 font-mono">GET /api/stock</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -142,7 +152,7 @@ export default function DashboardPage({ onNavigate }) {
               </span>
             </div>
             <div className="mt-2 text-xs text-slate-500">
-              Target for Demo Step 1: 100 kg Steel Rods. (Expected Final: 70 kg)
+              Current inventory at this location.
             </div>
           </div>
 
@@ -154,7 +164,7 @@ export default function DashboardPage({ onNavigate }) {
               </span>
             </div>
             <div className="mt-2 text-xs text-slate-500">
-              Target for Demo Step 2: Transfer 30 kg. (Expected Final: 18 kg)
+              Current inventory at this location.
             </div>
           </div>
         </div>
