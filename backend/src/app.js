@@ -7,6 +7,7 @@ const createStockRouter = require('./routes/stock');
 const createOperationsRouter = require('./routes/operations');
 const createMovesRouter = require('./routes/moves');
 const createDashboardRouter = require('./routes/dashboard');
+const createAlertsRouter = require('./routes/alerts');
 
 /**
  * Creates and configures the Express application.
@@ -36,6 +37,7 @@ function createApp(db) {
         'GET /api/operations',
         'GET /api/moves',
         'GET /api/dashboard',
+        'GET /api/alerts',
       ],
     });
   });
@@ -51,6 +53,7 @@ function createApp(db) {
   app.use('/api/operations', createOperationsRouter(db));
   app.use('/api/moves', createMovesRouter(db));
   app.use('/api/dashboard', createDashboardRouter(db));
+  app.use('/api/alerts', createAlertsRouter(db));
 
   // 404 Not Found Handler
   app.use((req, res) => {

@@ -50,6 +50,7 @@ export default function SettingsPage() {
             <li>GET /api/operations</li>
             <li>GET /api/moves</li>
             <li>GET /api/dashboard</li>
+            <li>GET /api/alerts</li>
           </ul>
         </div>
       </div>

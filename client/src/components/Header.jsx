@@ -19,29 +19,16 @@ export default function Header({ onOpenMobile, activeNav, onNavigate }) {
     const refreshAlerts = () => {
       if (alertsOpen) setAlertsLoading(true);
       setAlertsError('');
-      Promise.all([api.getProducts(), api.getStock(), api.getOperations()])
-      .then(([products, stock, operations]) => {
+      api.getAlerts()
+      .then((data) => {
         if (!active) return;
-        const next = [];
-        for (const product of products) {
-          const total = stock
-            .filter((item) => item.productId === product.id)
-            .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-          if (total <= Number(product.reorderLevel ?? 0)) {
-            next.push({
-              id: `stock-${product.id}`,
-              text: `${product.name}: ${total} ${product.uom || 'units'} left (reorder at ${product.reorderLevel ?? 0})`,
-              nav: 'products',
-            });
-          }
-        }
-        for (const operation of operations.filter((item) => item.status === 'DRAFT')) {
-          next.push({
-            id: `draft-${operation.id}`,
-            text: `${operation.type} draft awaiting validation`,
-            nav: operation.type === 'RECEIPT' ? 'receipts' : 'operations',
-          });
-        }
+        const next = (Array.isArray(data) ? data : []).map((alert) => ({
+          id: alert.id,
+          text: `${alert.title}: ${alert.message}`,
+          nav: alert.type === 'PENDING_OPERATION'
+            ? (alert.title.includes('RECEIPT') ? 'receipts' : 'operations')
+            : alert.type === 'DISCREPANCY' ? 'moves' : 'products',
+        }));
         setAlerts(next);
         const signature = next.map((alert) => `${alert.id}:${alert.text}`).join('|');
         if (alertsOpen) {

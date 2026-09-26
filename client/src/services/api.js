@@ -78,4 +78,7 @@ export const api = {
 
   // Dashboard
   getDashboard: () => request('/api/dashboard'),
+
+  // Alerts
+  getAlerts: () => request('/api/alerts'),
 };

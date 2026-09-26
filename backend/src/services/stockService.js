@@ -439,6 +439,149 @@ function getDashboard(db) {
 }
 
 /**
+ * Real-time Inventory & Operational Alerts.
+ *
+ * Rules:
+ * 1. OUT_OF_STOCK (severity: 'error'): Total stock across all locations <= 0.
+ * 2. LOW_STOCK (severity: 'warning'): 0 < Total stock <= reorder_level.
+ * 3. PENDING_OPERATION (severity: 'info'): Operations in 'DRAFT' status awaiting validation.
+ * 4. DISCREPANCY (severity: 'warning'/'info'): Adjustment moves with a non-zero count difference.
+ */
+function getAlerts(db) {
+  const alerts = [];
+
+  // Helper statement to find latest move timestamp for a product
+  const latestMoveStmt = db.prepare(`
+    SELECT timestamp FROM stock_moves WHERE product_id = ? ORDER BY timestamp DESC LIMIT 1
+  `);
+
+  // 1. Stock Level Alerts (Out of Stock & Low Stock)
+  const stockStmt = db.prepare(`
+    SELECT
+      p.id,
+      p.name,
+      p.sku,
+      p.uom,
+      p.reorder_level AS reorderLevel,
+      COALESCE(SUM(sb.quantity), 0) AS totalStock
+    FROM products p
+    LEFT JOIN stock_balances sb ON p.id = sb.product_id
+    GROUP BY p.id, p.name, p.sku, p.uom, p.reorder_level
+    ORDER BY p.name ASC
+  `);
+
+  const stockRows = stockStmt.all();
+
+  for (const row of stockRows) {
+    const totalStock = Number(row.totalStock);
+    const reorderLevel = Number(row.reorderLevel);
+    const moveRow = latestMoveStmt.get(row.id);
+    const eventTime = moveRow ? moveRow.timestamp : new Date().toISOString();
+
+    if (totalStock <= 0) {
+      alerts.push({
+        id: `alert-oos-${row.id}`,
+        type: 'OUT_OF_STOCK',
+        title: `Out of Stock: ${row.name}`,
+        message: `${row.name} (${row.sku}) is out of stock (0 ${row.uom} available). Reorder level: ${reorderLevel} ${row.uom}.`,
+        severity: 'error',
+        productId: row.id,
+        createdAt: eventTime,
+      });
+    } else if (totalStock <= reorderLevel) {
+      alerts.push({
+        id: `alert-low-${row.id}`,
+        type: 'LOW_STOCK',
+        title: `Low Stock: ${row.name}`,
+        message: `${row.name} (${row.sku}) is at or below reorder level (${totalStock} ${row.uom} remaining, threshold: ${reorderLevel} ${row.uom}).`,
+        severity: 'warning',
+        productId: row.id,
+        createdAt: eventTime,
+      });
+    }
+  }
+
+  // 2. Pending Draft Operations Alerts
+  const draftStmt = db.prepare(`
+    SELECT
+      o.id,
+      o.type,
+      o.product_id AS productId,
+      o.quantity,
+      o.counted_quantity AS countedQuantity,
+      o.created_at AS createdAt,
+      p.name AS productName,
+      p.sku,
+      p.uom
+    FROM operations o
+    LEFT JOIN products p ON o.product_id = p.id
+    WHERE o.status = 'DRAFT'
+    ORDER BY o.created_at DESC
+  `);
+
+  const draftRows = draftStmt.all();
+  for (const op of draftRows) {
+    const qty = op.quantity !== null ? Number(op.quantity) : (op.countedQuantity !== null ? Number(op.countedQuantity) : 0);
+    const uom = op.uom || 'units';
+    alerts.push({
+      id: `alert-draft-${op.id}`,
+      type: 'PENDING_OPERATION',
+      title: `Draft ${op.type} Pending`,
+      message: `${op.type} operation ${op.id} for ${op.productName || op.productId} (${qty} ${uom}) is awaiting validation.`,
+      severity: 'info',
+      productId: op.productId,
+      operationId: op.id,
+      createdAt: op.createdAt,
+    });
+  }
+
+  // 3. Discrepancy Alerts from Completed Adjustments (difference != 0)
+  const diffStmt = db.prepare(`
+    SELECT
+      sm.id,
+      sm.operation_id AS operationId,
+      sm.product_id AS productId,
+      sm.difference,
+      sm.timestamp,
+      p.name AS productName,
+      p.sku,
+      p.uom
+    FROM stock_moves sm
+    JOIN products p ON sm.product_id = p.id
+    WHERE sm.type = 'ADJUSTMENT' AND sm.difference IS NOT NULL AND sm.difference != 0
+    ORDER BY sm.timestamp DESC
+    LIMIT 5
+  `);
+
+  const diffRows = diffStmt.all();
+  for (const move of diffRows) {
+    const diff = Number(move.difference);
+    const uom = move.uom || 'kg';
+    const sign = diff > 0 ? '+' : '';
+    alerts.push({
+      id: `alert-diff-${move.id}`,
+      type: 'DISCREPANCY',
+      title: `Inventory Discrepancy: ${move.productName}`,
+      message: `Adjustment ${move.operationId} recorded a physical discrepancy of ${sign}${diff} ${uom}.`,
+      severity: diff < 0 ? 'warning' : 'info',
+      productId: move.productId,
+      operationId: move.operationId,
+      createdAt: move.timestamp,
+    });
+  }
+
+  // Sort by severity (error -> warning -> info) then date descending
+  const severityRank = { error: 0, warning: 1, info: 2 };
+  alerts.sort((a, b) => {
+    const rankDiff = (severityRank[a.severity] ?? 3) - (severityRank[b.severity] ?? 3);
+    if (rankDiff !== 0) return rankDiff;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  return alerts;
+}
+
+/**
  * CREATE OPERATION:
  * Always creates a DRAFT operation.
  * CORE RULE: Creating a draft MUST NOT modify stock balances or create moves.
@@ -807,6 +950,7 @@ module.exports = {
   getOperations,
   getMoves,
   getDashboard,
+  getAlerts,
   createOperation,
   validateOperation,
   getRecordedStock,
